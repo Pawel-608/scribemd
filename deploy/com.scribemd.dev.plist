@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  scribemd LaunchAgent template — macOS.
+
+  Before installing:
+    1. Edit WorkingDirectory to point at your local clone of scribemd.
+    2. Edit ProgramArguments to point at your absolute path to `node`.
+       Find it with `which node`. Common cases:
+         - nvm:      /Users/<you>/.nvm/versions/node/v24.10.0/bin/node
+         - homebrew: /opt/homebrew/bin/node  (Apple Silicon)
+                     /usr/local/bin/node     (Intel)
+    3. Edit EnvironmentVariables.PATH so that directory is on PATH.
+    4. (Optional) Change -H/-p to bind a different host/port.
+
+  Install:
+    cp deploy/com.scribemd.dev.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scribemd.dev.plist
+
+  Logs:
+    ~/Library/Logs/scribemd.log
+    ~/Library/Logs/scribemd.err.log
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.scribemd.dev</string>
+
+  <key>WorkingDirectory</key>
+  <string>/CHANGE/ME/path/to/scribemd</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/CHANGE/ME/path/to/node</string>
+    <string>./node_modules/next/dist/bin/next</string>
+    <string>start</string>
+    <string>-H</string>
+    <string>127.0.0.1</string>
+    <string>-p</string>
+    <string>3000</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/CHANGE/ME/path/to/node/dir:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/CHANGE_ME/Library/Logs/scribemd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/CHANGE_ME/Library/Logs/scribemd.err.log</string>
+</dict>
+</plist>
