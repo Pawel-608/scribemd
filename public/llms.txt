@@ -1,26 +1,26 @@
 # scribemd
 
-> Permissionless markdown workspaces. Anyone with a workspace URL can read,
-> write, and delete `.md` files in it via a tiny JSON API. The URL is the only
-> credential — treat it like a password.
+> Permissionless markdown workspaces with per-workspace git history. Anyone
+> with a workspace URL can read, write, rename, delete, and commit `.md`
+> files via a tiny JSON API. The URL is the only credential — treat it like
+> a password.
 
 If you are an AI agent and a user has shared a scribemd workspace URL with
-you (looks like `https://<host>/w/<uuid>`), use the API below to read and
-edit notes in that workspace. Do not invent or guess workspace IDs.
+you (looks like `https://<host>/w/<uuid>`), use the API below. Do not invent
+or guess workspace IDs.
 
 ## Workspace URL shape
 
 ```
-https://<host>/w/<uuid>          # human UI
-https://<host>/api/workspaces/<uuid>/files...   # JSON API
+https://<host>/w/<uuid>                              # human UI
+https://<host>/api/workspaces/<uuid>/...             # JSON API
 ```
 
 Extract `<host>` and `<uuid>` from the URL the user gave you.
 
-## API
+## File API
 
-All endpoints return JSON. Errors come back as `{"error": string}` with
-HTTP 4xx/5xx.
+Errors come back as `{"error": string}` with HTTP 4xx/5xx.
 
 ### List files
 
@@ -29,21 +29,24 @@ GET /api/workspaces/{uuid}/files
 → { "files": ["note1.md", "ideas/today.md", ...] }
 ```
 
-### Read a file
+### Read a file (current)
 
 ```
 GET /api/workspaces/{uuid}/files/{path}
 → { "path": "note.md", "content": "# ..." }
 ```
 
-`{path}` may contain `/`. Only `.md` files exist. `404` if the workspace or
-file doesn't exist.
+### Read a file at a past commit
 
-### Create or overwrite a file
+```
+GET /api/workspaces/{uuid}/files/{path}?at={sha}
+→ { "path": "note.md", "content": "# ...", "at": "<sha>" }
+```
+
+### Create or overwrite
 
 ```
 PUT /api/workspaces/{uuid}/files/{path}
-content-type: application/json
 { "content": "# Markdown body" }
 → { "ok": true }
 ```
@@ -51,12 +54,66 @@ content-type: application/json
 Parent directories are created automatically. Use this for both new files
 and edits — there is no separate "create" call.
 
-### Delete a file
+### Rename / move
+
+```
+POST /api/workspaces/{uuid}/rename
+{ "from": "old/path.md", "to": "new/path.md" }
+→ { "ok": true, "from": "old/path.md", "to": "new/path.md" }
+```
+
+Fails if the destination already exists.
+
+### Delete
 
 ```
 DELETE /api/workspaces/{uuid}/files/{path}
 → { "ok": true }
 ```
+
+## Git API
+
+Each workspace is its own git repo. Edits sit "uncommitted" until you call
+commit. History is preserved across commits.
+
+### Uncommitted change count
+
+```
+GET /api/workspaces/{uuid}/status
+→ { "changed": 3 }
+```
+
+### Commit current changes
+
+```
+POST /api/workspaces/{uuid}/commit
+{ "message": "Refactor outline" }
+→ { "sha": "abc123..." }            # success
+→ { "sha": null, "reason": "nothing to commit" }
+```
+
+Commit message defaults to "Update" if omitted.
+
+### List commits
+
+```
+GET /api/workspaces/{uuid}/history
+→ { "commits": [
+    { "sha": "...", "short": "abc1234", "message": "...", "date": "ISO-8601" },
+    ...
+] }
+```
+
+Newest first. Capped at 200.
+
+### Commit details
+
+```
+GET /api/workspaces/{uuid}/history/{sha}
+→ { "sha": "...", "message": "...", "date": "...", "files": ["note.md", ...] }
+```
+
+## Workspace API
 
 ### Create a new workspace
 
@@ -72,10 +129,10 @@ shared an existing URL, work in that workspace.
 
 - Only `.md` files are accepted. Other extensions return 400.
 - Paths are confined to the workspace; `..` traversal is rejected.
-- Last writer wins — there is no locking or merging. When editing, prefer
-  read → modify → write rather than blind overwrites.
-- This service has no auth, no audit log, and no history. Be conservative
-  with deletes; ask the user first.
+- Last writer wins — no locking. When editing, prefer read → modify → write
+  rather than blind overwrites.
+- This service has no auth, no audit log, and (besides git history) no
+  versioning. Be conservative with deletes; ask the user first.
 
 ## Example session
 
@@ -86,13 +143,19 @@ ID="b432e3b0-e8bf-403d-a808-b7517cf97cf4"
 # See what's there
 curl -s "$HOST/api/workspaces/$ID/files"
 
-# Read a file
+# Read, edit, save
 curl -s "$HOST/api/workspaces/$ID/files/welcome.md"
-
-# Write a new file
 curl -s -X PUT "$HOST/api/workspaces/$ID/files/notes/today.md" \
   -H 'content-type: application/json' \
   -d '{"content":"# Today\n\n- ..."}'
+
+# Commit
+curl -s -X POST "$HOST/api/workspaces/$ID/commit" \
+  -H 'content-type: application/json' \
+  -d '{"message":"Daily note"}'
+
+# Browse history
+curl -s "$HOST/api/workspaces/$ID/history"
 ```
 
 ## Source

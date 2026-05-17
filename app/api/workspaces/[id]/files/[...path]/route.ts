@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { resolveNote, workspaceExists } from '@/lib/workspaces';
+import { fileAtCommit, resolveNote, workspaceExists } from '@/lib/workspaces';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +17,16 @@ async function guard(id: string) {
   }
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   try {
     const { id, path: segments } = await params;
     await guard(id);
     const rel = segments.join('/');
+    const at = req.nextUrl.searchParams.get('at');
+    if (at) {
+      const content = await fileAtCommit(id, at, rel);
+      return NextResponse.json({ path: rel, content, at });
+    }
     const full = resolveNote(id, rel);
     const content = await fs.readFile(full, 'utf8');
     return NextResponse.json({ path: rel, content });
