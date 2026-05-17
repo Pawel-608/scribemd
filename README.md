@@ -6,28 +6,54 @@ scribemd is a local-first markdown editor designed for people who think in
 plain text and want an AI collaborator that actually understands the whole
 document, not just the cursor line.
 
-## Why
+## How collaboration works
 
-Most markdown editors treat AI as autocomplete. scribemd treats Claude as a
-co-author: it can read across all your notes, rewrite sections on request,
-restructure outlines, fact-check, summarize, and answer questions about what
-you've already written — while leaving the files as plain `.md` on disk that
-you fully own.
+The repo holds both the **app** (Next.js + TypeScript) and your **notes**
+(`notes/*.md`, version-controlled by git).
 
-## Goals
+1. **You** run the webapp locally and edit notes in the browser.
+2. **Claude** (or anyone) clones the same repo elsewhere, edits notes in
+   `notes/`, commits, and pushes.
+3. You click **Pull** in the top bar to fetch their changes and see them
+   instantly. Edit, commit, push from the UI.
 
-- **Local-first.** Your notes live as `.md` files in a directory you choose.
-  No proprietary format, no lock-in. Open them in any editor.
-- **Claude as a peer, not a popup.** Conversations happen alongside the
-  document with full context, not as one-line completions.
-- **Multi-file awareness.** Ask questions across an entire vault of notes.
-- **Keyboard-first.** Built for people who write fast.
-- **Open source.** MIT licensed.
+Because everything is plain `.md` in git, your notes are portable, diff-able,
+and editable in any other tool.
 
-## Status
+## Quickstart
 
-Early. The vision is set; the implementation is not. Contributions, ideas,
-and issues are welcome.
+Requirements: Node 20+ and git.
+
+```bash
+git clone https://github.com/Pawel-608/scribemd.git
+cd scribemd
+npm install
+npm run dev
+```
+
+Open <http://localhost:3000>.
+
+## Stack
+
+- Next.js 15 (App Router) + React 19
+- TypeScript
+- Tailwind CSS
+- `simple-git` for git operations
+- `react-markdown` + `remark-gfm` for live preview
+
+## Project layout
+
+```
+app/
+  api/              REST routes for files + git
+  components/       Sidebar, Editor, GitBar, Toast
+  lib/api.ts        Typed client
+  page.tsx          Main UI
+lib/
+  notes.ts          Safe file IO under notes/
+  git.ts            simple-git wrapper
+notes/              Your markdown files
+```
 
 ## License
 
