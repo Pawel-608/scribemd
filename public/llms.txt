@@ -125,6 +125,18 @@ POST /api/workspaces
 Only do this if the user explicitly asks for a new workspace. If they have
 shared an existing URL, work in that workspace.
 
+## Markdown rendering
+
+The preview pane renders GitHub-flavored markdown plus Mermaid diagrams.
+Use a fenced code block tagged `mermaid` to get a rendered diagram:
+
+````
+```mermaid
+flowchart LR
+  A --> B --> C
+```
+````
+
 ## Rules
 
 - Only `.md` files are accepted. Other extensions return 400.

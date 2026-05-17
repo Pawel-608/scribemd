@@ -2,6 +2,21 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MermaidBlock } from './MermaidBlock';
+
+type ReactNodeWithProps = { props?: { className?: string; children?: unknown } };
+
+const markdownComponents = {
+  pre: (props: { children?: unknown }) => {
+    const child = props.children as ReactNodeWithProps | undefined;
+    const className = child?.props?.className ?? '';
+    if (/\blanguage-mermaid\b/.test(className)) {
+      const code = String(child?.props?.children ?? '').replace(/\n$/, '');
+      return <MermaidBlock code={code} />;
+    }
+    return <pre {...(props as object)} />;
+  },
+};
 
 type Props = {
   path: string | null;
@@ -109,7 +124,9 @@ export function Editor({
           placeholder="# Start writing..."
         />
         <div className="overflow-y-auto p-6 prose-md bg-white">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
         </div>
       </div>
     </div>

@@ -64,6 +64,8 @@ gitignored — your notes are not in the repo.
 - Next.js 15 (App Router) + React 19 + TypeScript
 - Tailwind CSS
 - `react-markdown` + `remark-gfm` for live preview
+- `mermaid` for diagrams (use a ` ```mermaid ` fenced block)
+- `simple-git` for per-workspace git history
 
 ## Caveats
 
