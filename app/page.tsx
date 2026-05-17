@@ -1,164 +1,74 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { Editor } from './components/Editor';
-import { GitBar } from './components/GitBar';
-import { ToastHost, toast } from './components/Toast';
-import { api, type GitStatus } from './lib/api';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { api } from './lib/api';
 
 export default function Home() {
-  const [files, setFiles] = useState<string[]>([]);
-  const [current, setCurrent] = useState<string | null>(null);
-  const [content, setContent] = useState('');
-  const [dirty, setDirty] = useState(false);
-  const [status, setStatus] = useState<GitStatus | null>(null);
-  const [commitMsg, setCommitMsg] = useState('');
-  const [busy, setBusy] = useState<string | null>(null);
+  const router = useRouter();
+  const [creating, setCreating] = useState(false);
+  const [openId, setOpenId] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const refreshFiles = useCallback(async () => {
+  async function create() {
+    setCreating(true);
+    setError(null);
     try {
-      const { files } = await api.listFiles();
-      setFiles(files);
+      const { id } = await api.createWorkspace();
+      router.push(`/w/${id}`);
     } catch (err) {
-      toast((err as Error).message, 'error');
+      setError((err as Error).message);
+      setCreating(false);
     }
-  }, []);
+  }
 
-  const refreshStatus = useCallback(async () => {
-    try {
-      setStatus(await api.gitStatus());
-    } catch {
-      setStatus(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshFiles();
-    refreshStatus();
-  }, [refreshFiles, refreshStatus]);
-
-  const openFile = useCallback(
-    async (p: string) => {
-      if (dirty && !confirm('Unsaved changes will be lost. Continue?')) return;
-      try {
-        const { content } = await api.readFile(p);
-        setCurrent(p);
-        setContent(content);
-        setDirty(false);
-      } catch (err) {
-        toast((err as Error).message, 'error');
-      }
-    },
-    [dirty],
-  );
-
-  const save = useCallback(async () => {
-    if (!current || !dirty) return;
-    try {
-      await api.writeFile(current, content);
-      setDirty(false);
-      toast('Saved');
-      refreshStatus();
-    } catch (err) {
-      toast((err as Error).message, 'error');
-    }
-  }, [current, content, dirty, refreshStatus]);
-
-  const newFile = useCallback(async () => {
-    const name = prompt('New note filename (e.g. ideas/today.md):');
-    if (!name) return;
-    const clean = name.endsWith('.md') ? name : `${name}.md`;
-    try {
-      await api.writeFile(clean, '');
-      await refreshFiles();
-      await openFile(clean);
-      refreshStatus();
-    } catch (err) {
-      toast((err as Error).message, 'error');
-    }
-  }, [refreshFiles, openFile, refreshStatus]);
-
-  const commit = useCallback(async () => {
-    if (!commitMsg.trim()) return;
-    setBusy('commit');
-    try {
-      await api.gitCommit(commitMsg.trim());
-      setCommitMsg('');
-      toast('Committed');
-      await refreshStatus();
-    } catch (err) {
-      toast((err as Error).message, 'error');
-    } finally {
-      setBusy(null);
-    }
-  }, [commitMsg, refreshStatus]);
-
-  const pull = useCallback(async () => {
-    setBusy('pull');
-    try {
-      await api.gitPull();
-      toast('Pulled');
-      await refreshFiles();
-      if (current) {
-        try {
-          const { content } = await api.readFile(current);
-          setContent(content);
-          setDirty(false);
-        } catch {
-          setCurrent(null);
-          setContent('');
-        }
-      }
-      await refreshStatus();
-    } catch (err) {
-      toast((err as Error).message, 'error');
-    } finally {
-      setBusy(null);
-    }
-  }, [current, refreshFiles, refreshStatus]);
-
-  const push = useCallback(async () => {
-    setBusy('push');
-    try {
-      await api.gitPush();
-      toast('Pushed');
-      await refreshStatus();
-    } catch (err) {
-      toast((err as Error).message, 'error');
-    } finally {
-      setBusy(null);
-    }
-  }, [refreshStatus]);
+  function open(e: React.FormEvent) {
+    e.preventDefault();
+    const id = openId.trim();
+    if (!id) return;
+    router.push(`/w/${id}`);
+  }
 
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-line bg-white">
-        <h1 className="font-semibold text-ink">scribemd</h1>
-        <GitBar
-          status={status}
-          commitMsg={commitMsg}
-          onCommitMsgChange={setCommitMsg}
-          onCommit={commit}
-          onPull={pull}
-          onPush={push}
-          busy={busy}
-        />
-      </header>
-      <div className="flex flex-1 min-h-0">
-        <Sidebar files={files} current={current} onSelect={openFile} onNew={newFile} />
-        <Editor
-          path={current}
-          content={content}
-          dirty={dirty}
-          onChange={(v) => {
-            setContent(v);
-            setDirty(true);
-          }}
-          onSave={save}
-        />
+    <div className="min-h-screen flex items-center justify-center px-6">
+      <div className="max-w-lg w-full">
+        <h1 className="text-3xl font-semibold text-ink mb-2">scribemd</h1>
+        <p className="text-muted mb-8 leading-relaxed">
+          A permissionless markdown workspace. Create one in a click — anyone with
+          the URL can read and edit. Share it with Claude (or anyone else) to
+          collaborate.
+        </p>
+
+        <button
+          onClick={create}
+          disabled={creating}
+          className="w-full px-4 py-3 rounded bg-ink text-white font-medium hover:bg-black disabled:opacity-50 transition-colors mb-8"
+        >
+          {creating ? 'Creating…' : 'Create new workspace'}
+        </button>
+
+        <form onSubmit={open} className="flex gap-2">
+          <input
+            value={openId}
+            onChange={(e) => setOpenId(e.target.value)}
+            placeholder="Or paste a workspace ID…"
+            className="flex-1 px-3 py-2 rounded border border-line bg-white font-mono text-sm focus:outline-none focus:border-muted"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 rounded border border-line bg-white hover:bg-paper text-sm"
+          >
+            Open
+          </button>
+        </form>
+
+        {error && <p className="text-rose-700 text-sm mt-4">{error}</p>}
+
+        <p className="text-xs text-muted mt-8 leading-relaxed">
+          Workspace URLs are unguessable UUIDs and act as the only access
+          credential. Treat them like passwords.
+        </p>
       </div>
-      <ToastHost />
     </div>
   );
 }

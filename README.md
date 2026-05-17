@@ -1,28 +1,24 @@
 # scribemd
 
-A collaborative markdown workspace for writing and editing notes alongside Claude.
+A permissionless markdown workspace for writing alongside Claude (or anyone).
 
-scribemd is a local-first markdown editor designed for people who think in
-plain text and want an AI collaborator that actually understands the whole
-document, not just the cursor line.
+Click "Create" → get a unique URL → share it with a collaborator. Anyone with
+the URL can read and edit the notes in that workspace. No login, no signup —
+the URL itself is the access credential.
 
-## How collaboration works
+## How it works
 
-The repo holds both the **app** (Next.js + TypeScript) and your **notes**
-(`notes/*.md`, version-controlled by git).
-
-1. **You** run the webapp locally and edit notes in the browser.
-2. **Claude** (or anyone) clones the same repo elsewhere, edits notes in
-   `notes/`, commits, and pushes.
-3. You click **Pull** in the top bar to fetch their changes and see them
-   instantly. Edit, commit, push from the UI.
-
-Because everything is plain `.md` in git, your notes are portable, diff-able,
-and editable in any other tool.
+- **One click creates a workspace.** The server generates a UUID and an empty
+  `data/<uuid>/` directory. You're redirected to `/w/<uuid>`.
+- **The URL is the only credential.** Anyone with it can read, write, and
+  delete markdown files in that workspace. Treat it like a password.
+- **Share with Claude.** Paste the URL into a Claude conversation and ask it
+  to read/edit the notes via the JSON API (see below). Or share it with a
+  human collaborator the same way.
 
 ## Quickstart
 
-Requirements: Node 20+ and git.
+Requirements: Node 20+.
 
 ```bash
 git clone https://github.com/Pawel-608/scribemd.git
@@ -31,29 +27,51 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> and click **Create new workspace**.
+
+## API
+
+All endpoints are JSON. Workspace IDs are v4 UUIDs.
+
+| Method | Path                                       | Body                  | Returns |
+|--------|--------------------------------------------|-----------------------|---------|
+| POST   | `/api/workspaces`                          | —                     | `{ id }` |
+| GET    | `/api/workspaces/:id/files`                | —                     | `{ files: string[] }` |
+| GET    | `/api/workspaces/:id/files/:path`          | —                     | `{ path, content }` |
+| PUT    | `/api/workspaces/:id/files/:path`          | `{ content: string }` | `{ ok: true }` |
+| DELETE | `/api/workspaces/:id/files/:path`          | —                     | `{ ok: true }` |
+
+`:path` may include `/` for subdirectories. Only `.md` files are accepted.
+
+Example — create a workspace and write a note:
+
+```bash
+ID=$(curl -s -X POST http://localhost:3000/api/workspaces | jq -r .id)
+curl -X PUT "http://localhost:3000/api/workspaces/$ID/files/hello.md" \
+  -H 'content-type: application/json' \
+  -d '{"content":"# Hi from curl"}'
+open "http://localhost:3000/w/$ID"
+```
+
+## Storage
+
+Workspaces are stored as plain directories under `./data/<uuid>/`. Override
+the location with `SCRIBEMD_DATA_DIR=/path/to/storage`. The directory is
+gitignored — your notes are not in the repo.
 
 ## Stack
 
-- Next.js 15 (App Router) + React 19
-- TypeScript
+- Next.js 15 (App Router) + React 19 + TypeScript
 - Tailwind CSS
-- `simple-git` for git operations
 - `react-markdown` + `remark-gfm` for live preview
 
-## Project layout
+## Caveats
 
-```
-app/
-  api/              REST routes for files + git
-  components/       Sidebar, Editor, GitBar, Toast
-  lib/api.ts        Typed client
-  page.tsx          Main UI
-lib/
-  notes.ts          Safe file IO under notes/
-  git.ts            simple-git wrapper
-notes/              Your markdown files
-```
+- No auth, no rate limiting — fine for local/trusted deployments, not the
+  public internet without a reverse proxy that adds those.
+- No conflict resolution: last writer wins.
+- No history beyond the filesystem. Wrap `data/` in your own git repo or
+  backup if you need it.
 
 ## License
 

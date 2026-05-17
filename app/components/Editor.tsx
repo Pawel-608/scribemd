@@ -9,9 +9,10 @@ type Props = {
   dirty: boolean;
   onChange: (value: string) => void;
   onSave: () => void;
+  onDelete: () => void;
 };
 
-export function Editor({ path, content, dirty, onChange, onSave }: Props) {
+export function Editor({ path, content, dirty, onChange, onSave, onDelete }: Props) {
   if (!path) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted">
@@ -27,13 +28,21 @@ export function Editor({ path, content, dirty, onChange, onSave }: Props) {
           <span className="font-mono text-sm text-[#555]">{path}</span>
           {dirty && <span className="text-xs text-amber-700">● unsaved</span>}
         </div>
-        <button
-          onClick={onSave}
-          disabled={!dirty}
-          className="text-xs px-3 py-1 rounded border border-line bg-white hover:bg-paper disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Save (⌘S)
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onDelete}
+            className="text-xs px-3 py-1 rounded border border-line bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-colors"
+          >
+            Delete
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!dirty}
+            className="text-xs px-3 py-1 rounded border border-line bg-white hover:bg-paper disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Save (⌘S)
+          </button>
+        </div>
       </div>
       <div className="flex-1 grid grid-cols-2 min-h-0">
         <textarea
