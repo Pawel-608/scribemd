@@ -1,0 +1,100 @@
+# scribemd
+
+> Permissionless markdown workspaces. Anyone with a workspace URL can read,
+> write, and delete `.md` files in it via a tiny JSON API. The URL is the only
+> credential — treat it like a password.
+
+If you are an AI agent and a user has shared a scribemd workspace URL with
+you (looks like `https://<host>/w/<uuid>`), use the API below to read and
+edit notes in that workspace. Do not invent or guess workspace IDs.
+
+## Workspace URL shape
+
+```
+https://<host>/w/<uuid>          # human UI
+https://<host>/api/workspaces/<uuid>/files...   # JSON API
+```
+
+Extract `<host>` and `<uuid>` from the URL the user gave you.
+
+## API
+
+All endpoints return JSON. Errors come back as `{"error": string}` with
+HTTP 4xx/5xx.
+
+### List files
+
+```
+GET /api/workspaces/{uuid}/files
+→ { "files": ["note1.md", "ideas/today.md", ...] }
+```
+
+### Read a file
+
+```
+GET /api/workspaces/{uuid}/files/{path}
+→ { "path": "note.md", "content": "# ..." }
+```
+
+`{path}` may contain `/`. Only `.md` files exist. `404` if the workspace or
+file doesn't exist.
+
+### Create or overwrite a file
+
+```
+PUT /api/workspaces/{uuid}/files/{path}
+content-type: application/json
+{ "content": "# Markdown body" }
+→ { "ok": true }
+```
+
+Parent directories are created automatically. Use this for both new files
+and edits — there is no separate "create" call.
+
+### Delete a file
+
+```
+DELETE /api/workspaces/{uuid}/files/{path}
+→ { "ok": true }
+```
+
+### Create a new workspace
+
+```
+POST /api/workspaces
+→ { "id": "<uuid>" }
+```
+
+Only do this if the user explicitly asks for a new workspace. If they have
+shared an existing URL, work in that workspace.
+
+## Rules
+
+- Only `.md` files are accepted. Other extensions return 400.
+- Paths are confined to the workspace; `..` traversal is rejected.
+- Last writer wins — there is no locking or merging. When editing, prefer
+  read → modify → write rather than blind overwrites.
+- This service has no auth, no audit log, and no history. Be conservative
+  with deletes; ask the user first.
+
+## Example session
+
+```bash
+HOST="https://scribemd.example.com"
+ID="b432e3b0-e8bf-403d-a808-b7517cf97cf4"
+
+# See what's there
+curl -s "$HOST/api/workspaces/$ID/files"
+
+# Read a file
+curl -s "$HOST/api/workspaces/$ID/files/welcome.md"
+
+# Write a new file
+curl -s -X PUT "$HOST/api/workspaces/$ID/files/notes/today.md" \
+  -H 'content-type: application/json' \
+  -d '{"content":"# Today\n\n- ..."}'
+```
+
+## Source
+
+https://github.com/Pawel-608/scribemd

@@ -68,6 +68,22 @@ export default function Home() {
           Workspace URLs are unguessable UUIDs and act as the only access
           credential. Treat them like passwords.
         </p>
+
+        <p className="text-xs text-muted mt-4">
+          For AI agents:{' '}
+          <a href="/llms.txt" className="underline hover:text-ink">
+            /llms.txt
+          </a>{' '}
+          · Source:{' '}
+          <a
+            href="https://github.com/Pawel-608/scribemd"
+            className="underline hover:text-ink"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+        </p>
       </div>
     </div>
   );
