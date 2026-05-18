@@ -1,8 +1,13 @@
 'use client';
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from './MermaidBlock';
+
+const SPLIT_STORAGE_KEY = 'scribemd:editor-split-pct';
+const MIN_PCT = 15;
+const MAX_PCT = 85;
 
 type ReactNodeWithProps = { props?: { className?: string; children?: unknown } };
 
@@ -43,6 +48,47 @@ export function Editor({
   onExitHistorical,
   onRestoreHistorical,
 }: Props) {
+  const splitRef = useRef<HTMLDivElement>(null);
+  const [leftPct, setLeftPct] = useState(50);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const stored = Number(localStorage.getItem(SPLIT_STORAGE_KEY));
+    if (Number.isFinite(stored) && stored >= MIN_PCT && stored <= MAX_PCT) {
+      setLeftPct(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const el = splitRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(MAX_PCT, Math.max(MIN_PCT, pct));
+      setLeftPct(clamped);
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [dragging]);
+
+  useEffect(() => {
+    if (dragging) return;
+    localStorage.setItem(SPLIT_STORAGE_KEY, String(leftPct));
+  }, [dragging, leftPct]);
+
+  const onDividerDoubleClick = useCallback(() => setLeftPct(50), []);
+
   if (!path) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted">
@@ -106,7 +152,7 @@ export function Editor({
           </button>
         </div>
       </div>
-      <div className="flex-1 grid grid-cols-2 min-h-0">
+      <div ref={splitRef} className="flex-1 flex min-h-0">
         <textarea
           value={content}
           readOnly={readOnly}
@@ -117,13 +163,32 @@ export function Editor({
               onSave();
             }
           }}
-          className={`w-full h-full p-6 font-mono text-sm leading-relaxed outline-none resize-none border-r border-line ${
+          style={{ width: `${leftPct}%` }}
+          className={`h-full p-6 font-mono text-sm leading-relaxed outline-none resize-none ${
             readOnly ? 'bg-amber-50/40 text-[#444]' : 'bg-paper'
           }`}
           spellCheck={false}
           placeholder="# Start writing..."
         />
-        <div className="overflow-y-auto p-6 prose-md bg-white">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow={Math.round(leftPct)}
+          aria-valuemin={MIN_PCT}
+          aria-valuemax={MAX_PCT}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDoubleClick={onDividerDoubleClick}
+          title="Drag to resize · double-click to reset"
+          className={`relative w-1 shrink-0 cursor-col-resize bg-line hover:bg-muted transition-colors ${
+            dragging ? 'bg-muted' : ''
+          }`}
+        >
+          <span className="absolute inset-y-0 -left-1 -right-1" />
+        </div>
+        <div style={{ width: `${100 - leftPct}%` }} className="overflow-y-auto p-6 prose-md bg-white">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
             {content}
           </ReactMarkdown>
